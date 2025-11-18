@@ -4,12 +4,12 @@
 
 ### CHIRP AND PULSE PARAMETERS
 GENERATE:
-    sample_rate: &s_rate 56e6            # [Hz] Sample rate of the generated
+    sample_rate: &s_rate 30e6            # [Hz] Sample rate of the generated
                                          #   chirp (used as TX and RX rate too)
     chirp_type: 'linear'                 # Chirp frequency progression type.
                                          #   Supported options: "linear",
                                          #   "hyperbolic"
-    chirp_bandwidth: 56e6                # [Hz] Bandwidth of the chirp
+    chirp_bandwidth: *s_rate                # [Hz] Bandwidth of the chirp
     lo_offset_sw: 0e6                    # [Hz] Center frequency of the chirp
                                          #   (relative to RF center frequency)
     window: 'rectangular'                # Window function applied to the chirp
@@ -40,7 +40,7 @@ DEVICE:
                                          #   See https://files.ettus.com/manual/page_configuration.html
     clk_ref: "internal"                  # Clock reference source
                                          #   See https://files.ettus.com/manual/page_sync.html
-    clk_rate: 56e6                       # [Hz] SDR main clock frequency
+    clk_rate: *s_rate                       # [Hz] SDR main clock frequency
     tx_channels: "0,1"                     # List of TX channels to use (comma
                                          #   separated) (more than 1 channel only works if subdev is A:A A:B)
     rx_channels: "0,1"                     # List of RX channels to use (comma
@@ -71,7 +71,7 @@ RF0:
     lo_offset: 0e6                      # [Hz] LO offset
     rx_gain: 30                          # [dB] RX Gain
     tx_gain: 40                          # [dB] TX Gain
-    bw: 56e6                             # [Hz] Configurable filter bandwidth
+    bw: *s_rate                             # [Hz] Configurable filter bandwidth
     tx_ant: "TX/RX"                      # Port to be used for TX
     rx_ant: "RX2"                        # port to be used for RX
     transmit: true                       # "true" (or not set) for normal operation,
@@ -87,7 +87,7 @@ RF1:
     lo_offset: 0e6                       # [Hz] LO offset
     rx_gain: 30                          # [dB] RX Gain
     tx_gain: 40                          # [dB] TX Gain
-    bw: 56e6                             # [Hz] Configurable filter bandwidth
+    bw: *s_rate                             # [Hz] Configurable filter bandwidth
     tx_ant: "TX/RX"                      # Port to be used for TX
     rx_ant: "RX2"                        # port to be used for RX
     transmit: true                      # "true" (or not set) for normal operation,
