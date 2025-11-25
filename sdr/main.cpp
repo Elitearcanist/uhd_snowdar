@@ -572,7 +572,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
   vector<complex<float>> buff(num_rx_samps); // Buffer sized for one pulse at a time
   vector<void *> buffs;
-  for (size_t ch = 0; ch < rx_stream->get_num_channels(); ch++)
+  int num_channels = rx_stream->get_num_channels();
+  for (size_t ch = 0; ch < num_channels; ch++)
   {
     buffs.push_back(&buff.front()); // TODO: I don't think this actually works for num_channels > 1
   }
@@ -647,7 +648,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
       if (outfile.is_open())
       {
         outfile.write((const char *)&sample_sum.front(),
-                      num_rx_samps * sizeof(complex<float>));
+                      num_channels * num_rx_samps * sizeof(complex<float>)); // Multiply by num_channels to account for more than one channel of data
       }
       else
       {

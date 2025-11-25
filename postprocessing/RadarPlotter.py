@@ -39,7 +39,7 @@ n_stack = 1  # Do additional stacking in this notebook - set > 1 to enable
 zero_sample_idx = 0  # The index of the 0 distance sample -- will change with platforms and config changes -- if unsure, just set to 0
 
 ##### FILE NAMES #####
-PREFIX = "./data/20251106_155534"
+PREFIX = "./data/20251118_162515"
 YAML_FILE = PREFIX + "_config.yaml"
 BIN_FILE = PREFIX + "_rx_samps.bin"
 
