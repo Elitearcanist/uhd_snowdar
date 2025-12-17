@@ -4,7 +4,7 @@
 
 ### CHIRP AND PULSE PARAMETERS
 GENERATE:
-    sample_rate: &s_rate 28e6            # [Hz] Sample rate of the generated
+    sample_rate: &s_rate 30e6            # [Hz] Sample rate of the generated
                                          #   chirp (used as TX and RX rate too)
     chirp_type: 'linear'                 # Chirp frequency progression type.
                                          #   Supported options: "linear",
@@ -39,7 +39,7 @@ DEVICE:
     # Device identification: https://files.ettus.com/manual/page_identification.html
     # Advanced config: https://files.ettus.com/manual/page_configuration.html
     # Transport parameters: https://files.ettus.com/manual/page_transport.html
-    device_args: "num_recv_frames=900,num_send_frames=900,recv_frame_size=12000,send_frame_size=12000"
+    device_args: "num_recv_frames=900,num_send_frames=900,recv_frame_size=5000,send_frame_size=5000"
     subdev: "A:A A:B"                    # Active SDR submodules (for multi channel do A:A A:B)
                                          #   See https://files.ettus.com/manual/page_configuration.html
     clk_ref: "internal"                  # Clock reference source
@@ -73,8 +73,8 @@ RF0:
     tx_rate: *s_rate                     # [Hz] TX Sample Rate
     freq: 5.8e9                          # [Hz] Center Frequency (mixer frequency)
     lo_offset: 0e6                      # [Hz] LO offset
-    rx_gain: 36                          # [dB] RX Gain
-    tx_gain: 65                          # [dB] TX Gain
+    rx_gain: 65                          # [dB] RX Gain
+    tx_gain: 80                          # [dB] TX Gain
     bw: *s_rate                             # [Hz] Configurable filter bandwidth
     tx_ant: "TX/RX"                      # Port to be used for TX
     rx_ant: "RX2"                        # port to be used for RX
@@ -89,8 +89,8 @@ RF1:
     tx_rate: *s_rate                     # [Hz] TX Sample Rate
     freq: 5.8e9                          # [Hz] Center Frequency (mixer frequency)
     lo_offset: 0e6                       # [Hz] LO offset
-    rx_gain: 36                          # [dB] RX Gain
-    tx_gain: 65                          # [dB] TX Gain
+    rx_gain: 65                          # [dB] RX Gain
+    tx_gain: 0                          # [dB] TX Gain
     bw: *s_rate                             # [Hz] Configurable filter bandwidth
     tx_ant: "TX/RX"                      # Port to be used for TX
     rx_ant: "RX2"                        # port to be used for RX
@@ -109,13 +109,15 @@ CHIRP:
                                          #   to TX (if using GPIO)
     tr_off_trail: 0e-6                   # [s] Time from TX off to GPIO output
                                          #   off (if using GPIO)
-    pulse_rep_int: 1000e-6                # [s] Pulse period
+    pulse_rep_int: 250e-6                # [s] Pulse period
     tx_lead: 0e-6                        # [s] Time between start of TX and RX
     num_pulses: &num_pulses 1000        # No. of chirps to TX/RX - set to -1 to
                                          #   continuously transmit pulses until
                                          #   stopped
     num_presums: 1                       # Number of received pulses to average
                                          #   over before writing to file
+    # I noticed that the saved data had lots of gaps (0s) if phase dithering was disabled
+    # however, it did not seem to affect the spectrogram
     phase_dithering: false                # Enable phase dithering
 ### DURING-RECORDING FILE LOCATIONS
 FILES:
