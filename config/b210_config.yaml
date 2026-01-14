@@ -101,7 +101,7 @@ RF1:
                                          #   supported on some SDRs)
 ### PULSE TIMING
 CHIRP:
-    time_offset: 1                       # [s] Offset time before the first
+    time_offset: 2                       # [s] Offset time before the first
                                          #   received sample
     tx_duration: *pulse_len              # [s] Transmission duration
     rx_duration: *pulse_len              # [s] Receive duration
@@ -109,9 +109,9 @@ CHIRP:
                                          #   to TX (if using GPIO)
     tr_off_trail: 0e-6                   # [s] Time from TX off to GPIO output
                                          #   off (if using GPIO)
-    pulse_rep_int: 250e-6                # [s] Pulse period
+    pulse_rep_int: 1000e-6                # [s] Pulse period
     tx_lead: 0e-6                        # [s] Time between start of TX and RX
-    num_pulses: &num_pulses 1000        # No. of chirps to TX/RX - set to -1 to
+    num_pulses: &num_pulses 200        # No. of chirps to TX/RX - set to -1 to
                                          #   continuously transmit pulses until
                                          #   stopped
     num_presums: 1                       # Number of received pulses to average
