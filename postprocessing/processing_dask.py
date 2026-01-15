@@ -10,6 +10,7 @@ import scipy.signal
 
 import processing as old_processing
 
+
 def process_stdout_log(log):
     """
     Load timestamp and ERROR_CODE_LATE_COMMAND information from UHD radar code stdout.
@@ -22,41 +23,50 @@ def process_stdout_log(log):
 
     for idx, line in enumerate(log.splitlines()):
         if "Receiver error:" in line:
-            error_code = re.search(
-                r"(?:Receiver error: )([\w_]+)", line).groups()[0]
+            error_code = re.search(r"(?:Receiver error: )([\w_]+)", line).groups()[0]
             old_style_regex_search = re.search(
-                r"(?:Scheduling chirp )([\d]+)", log[idx-1])
+                r"(?:Scheduling chirp )([\d]+)", log[idx - 1]
+            )
             if old_style_regex_search is not None:
                 chirp_idx = int(
-                    re.search(r"(?:Scheduling chirp )([\d]+)", log[idx-1]).groups()[0])
+                    re.search(r"(?:Scheduling chirp )([\d]+)", log[idx - 1]).groups()[0]
+                )
             else:
-                chirp_idx = int(
-                    re.search(r"(?:Chirp )([\d]+)", line).groups()[0])
+                chirp_idx = int(re.search(r"(?:Chirp )([\d]+)", line).groups()[0])
             errors[chirp_idx] = error_code
             if error_code != "ERROR_CODE_LATE_COMMAND":
                 print(
-                    f"WARNING: Uncommon error in the log: {error_code} (on chirp {chirp_idx})")
+                    f"WARNING: Uncommon error in the log: {error_code} (on chirp {chirp_idx})"
+                )
                 print(f"Full message: {line}")
         if ("[START]" in line) or ("Scheduling chirp 0 RX" in line):
             start_timestamp = float(
-                re.search(r"(?:\[)([\d]+\.[\d]+)", line).groups()[0])
-        if ("Total pulses attempted" in line): 
+                re.search(r"(?:\[)([\d]+\.[\d]+)", line).groups()[0]
+            )
+        if "Total pulses attempted" in line:
             num_pulses_attempted = int(re.search(r": ([\d]+)", line).groups()[0])
 
     return start_timestamp, errors, num_pulses_attempted
 
 
-def save_radar_data_to_zarr(prefix, skip_if_cached=True, zarr_base_location=None, expected_base_name_regex=r'\d{8}_\d{6}', log_required=True, dryrun=False):
+def save_radar_data_to_zarr(
+    prefix,
+    skip_if_cached=True,
+    zarr_base_location=None,
+    expected_base_name_regex=r"\d{8}_\d{6}",
+    log_required=True,
+    dryrun=False,
+):
     """
     Load raw radar data from a given prefix, and save it to a zarr file.
-    
+
     `prefix` is the path to the raw data, without the _rx_samps.bin/_config.yaml/_uhd_stdout.log suffixes.
     (`log_required` can be set to False if no log file is available)
 
     As a safety precaution, this function will check that the prefix basename matches the `expected_base_name_regex` expression.
     If using the python code to run the radar system, the prefixes will be of the form YYYYMMDD_HHMMSS,
     which is what the default regex is looking for. `expected_base_name_regex` can be set to None to skip this check.
-    
+
     The location for the zarr file is the same directory containing the prefix, unless you provide
     an alternate `zarr_base_location` argument.
 
@@ -65,7 +75,7 @@ def save_radar_data_to_zarr(prefix, skip_if_cached=True, zarr_base_location=None
 
     Setting `dryrun` to True will cause this function to return the path to the zarr file
     that it would have created without actually writing anything to disk.
-    
+
     Returns the path to the zarr file only. You are responsible for re-loading the data from the zarr file.
     """
 
@@ -73,10 +83,13 @@ def save_radar_data_to_zarr(prefix, skip_if_cached=True, zarr_base_location=None
     # Validation and file name generation
     #
     basename = os.path.basename(prefix)
-    if expected_base_name_regex:  # Optional sanity check that basename makes sense -- set expected_base_name_regex to None to skip
+    if (
+        expected_base_name_regex
+    ):  # Optional sanity check that basename makes sense -- set expected_base_name_regex to None to skip
         if not re.match(expected_base_name_regex, basename):
             raise ValueError(
-                f"Prefix basename {basename} does not match expected regex {expected_base_name_regex}")
+                f"Prefix basename {basename} does not match expected regex {expected_base_name_regex}"
+            )
 
     # Generate expected zarr output location
     if zarr_base_location is None:
@@ -98,75 +111,105 @@ def save_radar_data_to_zarr(prefix, skip_if_cached=True, zarr_base_location=None
     # Load configuration YAML
     config = old_processing.load_config(prefix)
 
-    cpu_format = config['DEVICE'].get('cpu_format', 'fc32')
-    if cpu_format == 'fc32':
+    cpu_format = config["DEVICE"].get("cpu_format", "fc32")
+    if cpu_format == "fc32":
         output_dtype = np.float32
         scale_factor = 1.0
-    elif cpu_format == 'sc16':
+    elif cpu_format == "sc16":
         output_dtype = np.int16
         scale_factor = np.iinfo(output_dtype).max
-    elif cpu_format == 'sc8':
+    elif cpu_format == "sc8":
         output_dtype = np.int8
         scale_factor = np.iinfo(output_dtype).max
     else:
-        raise Exception(f"Unrecognized cpu_format '{cpu_format}'. Must be one of 'fc32', 'sc16', or 'sc8'.")
+        raise Exception(
+            f"Unrecognized cpu_format '{cpu_format}'. Must be one of 'fc32', 'sc16', or 'sc8'."
+        )
 
     # Load raw RX samples
-    rx_len_samples = int(config['CHIRP']['rx_duration']
-                         * config['GENERATE']['sample_rate'])
+    rx_len_samples = int(
+        config["CHIRP"]["rx_duration"] * config["GENERATE"]["sample_rate"]
+    )
     rx_sig = da.from_array(
-        np.memmap(rx_samps_file, dtype=output_dtype, mode='r', order='C'), chunks=rx_len_samples*2*100)
+        np.memmap(rx_samps_file, dtype=output_dtype, mode="r", order="C"),
+        chunks=rx_len_samples * 2 * 100,
+    )
     rx_sig = (rx_sig[::2] + (1j * rx_sig[1::2])).astype(np.complex64) / scale_factor
     n_rxs = rx_sig.size // rx_len_samples
-    radar_data = da.transpose(da.reshape(
-        rx_sig, (n_rxs, rx_len_samples), merge_chunks=True))
+    radar_data = da.transpose(
+        da.reshape(rx_sig, (n_rxs, rx_len_samples), merge_chunks=True)
+    )
 
     # Create time axes
-    slow_time = np.linspace(0, config['CHIRP']['pulse_rep_int']
-                            * config['CHIRP'].get('num_presums', 1)*n_rxs, radar_data.shape[1])
-    fast_time = np.linspace(
-        0, config['CHIRP']['rx_duration'], radar_data.shape[0])
+    slow_time = np.linspace(
+        0,
+        config["CHIRP"]["pulse_rep_int"]
+        * config["CHIRP"].get("num_presums", 1)
+        * n_rxs,
+        radar_data.shape[1],
+    )
+    fast_time = np.linspace(0, config["CHIRP"]["rx_duration"], radar_data.shape[0])
 
     # Load raw data from log
     log = None
     if os.path.exists(log_file):
-        with open(log_file, 'r') as log_f:
+        with open(log_file, "r") as log_f:
             log = log_f.read()
     else:
         if log_required:
             raise FileNotFoundError(
-                f"Log file not found: {log_file}. If a log file is not required, set log_required=False")
+                f"Log file not found: {log_file}. If a log file is not required, set log_required=False"
+            )
 
     # Save radar_data, slow_time, and fs to an xarray datarray
     data = xr.Dataset(
         data_vars={
-            "radar_data": (["sample_idx", "pulse_idx"], radar_data, {"description": "complex radar data"}),
+            "radar_data": (
+                ["sample_idx", "pulse_idx"],
+                radar_data,
+                {"description": "complex radar data"},
+            ),
         },
         coords={
-            "sample_idx": ("sample_idx", np.arange(radar_data.shape[0]), {"description": "Index of this sample in the chirp"}),
-            "fast_time": ("sample_idx", fast_time, {"description": "time relative to start of this recording interval in seconds"}),
-            "pulse_idx": ("pulse_idx", np.arange(radar_data.shape[1]), {"description": "Index of this chirp in the sequence"}),
+            "sample_idx": (
+                "sample_idx",
+                np.arange(radar_data.shape[0]),
+                {"description": "Index of this sample in the chirp"},
+            ),
+            "fast_time": (
+                "sample_idx",
+                fast_time,
+                {
+                    "description": "time relative to start of this recording interval in seconds"
+                },
+            ),
+            "pulse_idx": (
+                "pulse_idx",
+                np.arange(radar_data.shape[1]),
+                {"description": "Index of this chirp in the sequence"},
+            ),
             "slow_time": ("pulse_idx", slow_time, {"description": "time in seconds"}),
         },
         attrs={
             "config": config,
             "stdout_log": log,
             "prefix": prefix,
-            "basename": basename
-        }
+            "basename": basename,
+        },
     )
 
     # TODO: Due to the currently hard-coded increase in pulse repetition interval after an error,
     # the slow time may not be correct.
 
     if not dryrun:
-        with dask.config.set(scheduler='single-threaded'):
+        with dask.config.set(scheduler="single-threaded"):
             data.to_zarr(zarr_path, mode="w")
     else:
         print("This is a dry run: not saving data to disk")
         print(data)
 
     return zarr_path
+
 
 def check_if_error_data_exists(data, errors=None, num_pulses_attempted=-1):
     """
@@ -203,24 +246,32 @@ def check_if_error_data_exists(data, errors=None, num_pulses_attempted=-1):
         or it could indicate a more serious problem. This return value should always be investigated.
     """
 
-    pulses_requested = data.attrs['config']['CHIRP']['num_pulses']
-    pulses_in_data = len(data.pulse_idx) * data.attrs['config']['CHIRP']['num_presums']
-    
+    pulses_requested = data.attrs["config"]["CHIRP"]["num_pulses"]
+    pulses_in_data = len(data.pulse_idx) * data.attrs["config"]["CHIRP"]["num_presums"]
+
     if not errors:
         _, errors, num_pulses_attempted = process_stdout_log(data.attrs["stdout_log"])
-    
+
     n_errors = len(errors)
 
     if pulses_requested < 0:
-        return "unknown" # Number of attempted pulses unknown, so cannot trivially determine if error data is included
+        return "unknown"  # Number of attempted pulses unknown, so cannot trivially determine if error data is included
     elif pulses_in_data == pulses_requested == num_pulses_attempted:
         return "error_data_included"
-    elif pulses_in_data == (pulses_requested - n_errors) or pulses_requested == pulses_in_data == (num_pulses_attempted - n_errors):
+    elif pulses_in_data == (
+        pulses_requested - n_errors
+    ) or pulses_requested == pulses_in_data == (num_pulses_attempted - n_errors):
         return "error_data_not_included"
     else:
         return "unexpected_data_length"
 
-def fill_errors(data, error_fill_value=np.nan, allowed_file_error_types=[], force_file_error_type=None):
+
+def fill_errors(
+    data,
+    error_fill_value=np.nan,
+    allowed_file_error_types=[],
+    force_file_error_type=None,
+):
     """
     Replace all values from chirps with a reported error with the specified error_fill_value
     """
@@ -228,15 +279,21 @@ def fill_errors(data, error_fill_value=np.nan, allowed_file_error_types=[], forc
     _, errors, num_pulses_attempted = process_stdout_log(data.attrs["stdout_log"])
     file_error_type = check_if_error_data_exists(data, errors, num_pulses_attempted)
 
-    if force_file_error_type != None: # force the file error type if we want control over error handling behavior
+    if (
+        force_file_error_type != None
+    ):  # force the file error type if we want control over error handling behavior
         file_error_type = force_file_error_type
 
     if file_error_type != "error_data_included":
-        if (file_error_type in allowed_file_error_types):
-            print(f"[WARNING] Unexpected file error type of {file_error_type} but " +
-                  "explicitly allowed by allowed_file_error_types so proceeding without additional checks. This may have unexpected behaviors!")
+        if file_error_type in allowed_file_error_types:
+            print(
+                f"[WARNING] Unexpected file error type of {file_error_type} but "
+                + "explicitly allowed by allowed_file_error_types so proceeding without additional checks. This may have unexpected behaviors!"
+            )
         else:
-            print(f"[WARNING] File error type is {file_error_type} so there's nothing for this function to do. Returning a copy of your unmodified dataset.")
+            print(
+                f"[WARNING] File error type is {file_error_type} so there's nothing for this function to do. Returning a copy of your unmodified dataset."
+            )
             return data.copy()
 
     result = data.copy()
@@ -245,10 +302,16 @@ def fill_errors(data, error_fill_value=np.nan, allowed_file_error_types=[], forc
     # only fill errors if they exist, otherwise avoid throwing an index error
     if error_idxs.size != 0:
         result["radar_data"][{"pulse_idx": error_idxs}] = error_fill_value
-        
+
     return result
 
-def remove_errors(data, skip_if_already_complete=True, allowed_file_error_types=[], force_file_error_type=None):
+
+def remove_errors(
+    data,
+    skip_if_already_complete=True,
+    allowed_file_error_types=[],
+    force_file_error_type=None,
+):
     """
     Remove received data associated with chrips with a reported error
     """
@@ -256,15 +319,21 @@ def remove_errors(data, skip_if_already_complete=True, allowed_file_error_types=
     _, errors, num_pulses_attempted = process_stdout_log(data.attrs["stdout_log"])
     file_error_type = check_if_error_data_exists(data, errors)
 
-    if force_file_error_type != None: # force the file error type if we want control over error handling behavior
+    if (
+        force_file_error_type != None
+    ):  # force the file error type if we want control over error handling behavior
         file_error_type = force_file_error_type
 
     if file_error_type != "error_data_included":
-        if (file_error_type in allowed_file_error_types):
-            print(f"[WARNING] Unexpected file error type of {file_error_type} but " +
-                  "explicitly allowed by allowed_file_error_types so proceeding without additional checks. This may have unexpected behaviors!")
+        if file_error_type in allowed_file_error_types:
+            print(
+                f"[WARNING] Unexpected file error type of {file_error_type} but "
+                + "explicitly allowed by allowed_file_error_types so proceeding without additional checks. This may have unexpected behaviors!"
+            )
         else:
-            print(f"[WARNING] File error type is {file_error_type} so there's nothing for this function to do. Returning a copy of your unmodified dataset.")
+            print(
+                f"[WARNING] File error type is {file_error_type} so there's nothing for this function to do. Returning a copy of your unmodified dataset."
+            )
             return data.copy()
 
     if "errors_removed" in data.attrs:
@@ -276,11 +345,11 @@ def remove_errors(data, skip_if_already_complete=True, allowed_file_error_types=
 
     all_idxs = np.arange(data["radar_data"].shape[1])
     err_idx = np.array(list(errors.keys()))
-    if (len(err_idx) == 0):
+    if len(err_idx) == 0:
         return data
     keep_idxs = np.delete(all_idxs, err_idx)
 
-    result = data[{'pulse_idx': keep_idxs}].copy()
+    result = data[{"pulse_idx": keep_idxs}].copy()
     result.attrs["errors_removed"] = True
     return result
 
@@ -291,12 +360,18 @@ def stack(data: xr.Dataset, n_stack: int):
     All relevant coordinates (i.e. slow_time, pulse_idx) are taken as their
     minimum value in the stack.
     """
-    return data.coarsen({'pulse_idx': n_stack},
-                 boundary='trim',
-                 coord_func='min').mean()
+    return data.coarsen(
+        {"pulse_idx": n_stack}, boundary="trim", coord_func="min"
+    ).mean()
 
 
-def pulse_compress(data: xr.Dataset, chirp, fs: float, zero_sample_idx: int=0, signal_speed: float=None):
+def pulse_compress(
+    data: xr.Dataset,
+    chirp,
+    fs: float,
+    zero_sample_idx: int = 0,
+    signal_speed: float = None,
+):
     """
     Apply pulse compression using samples from `chirp` to each pulse from `data`.
     Zero travel time is assumed to be at `zero_sample_idx` in the chirp.
@@ -305,13 +380,16 @@ def pulse_compress(data: xr.Dataset, chirp, fs: float, zero_sample_idx: int=0, s
     assuming a constant signal speed.
     """
 
-    output_len = len(data["sample_idx"])-len(chirp)+1
-    travel_time = np.linspace(0, output_len/fs, output_len)
+    output_len = len(data["sample_idx"]) - len(chirp) + 1
+    travel_time = np.linspace(0, output_len / fs, output_len)
     travel_time = travel_time - travel_time[zero_sample_idx]
 
     coords = {"travel_time": travel_time}
     if signal_speed is not None:
-        coords['reflection_distance'] = ("travel_time", travel_time * (signal_speed/2))
+        coords["reflection_distance"] = (
+            "travel_time",
+            travel_time * (signal_speed / 2),
+        )
 
     # This code is kind of a nightmare, but it should be a fairly efficient way
     # to do this.
@@ -323,24 +401,37 @@ def pulse_compress(data: xr.Dataset, chirp, fs: float, zero_sample_idx: int=0, s
     # https://docs.xarray.dev/en/stable/generated/xarray.apply_ufunc.html
 
     compressed = xr.apply_ufunc(
-        lambda x: scipy.signal.correlate(
-                x, chirp, mode='valid') / np.sum(np.abs(chirp)**2),
+        lambda x: scipy.signal.correlate(x, chirp, mode="valid")
+        / np.sum(np.abs(chirp) ** 2),
         data,
-        input_core_dims=[['sample_idx']], # The dimension operated over -- aka "don't vectorize over this"
-        output_core_dims=[["travel_time"]], # The output dimensions of the lambda function itself
-        exclude_dims=set(("sample_idx",)), # Dimensions to not vectorize over
-        vectorize=True, # Vectorize other dimensions using a call to np.vectorize
-        dask="parallelized", # Allow dask to chunk and parallelize the computation
-        output_dtypes=[data["radar_data"].dtype], # Needed for dask: explicitly provide the output dtype
-        dask_gufunc_kwargs={"output_sizes": {'travel_time': output_len}} # Also needed for dask:
+        input_core_dims=[
+            ["sample_idx"]
+        ],  # The dimension operated over -- aka "don't vectorize over this"
+        output_core_dims=[
+            ["travel_time"]
+        ],  # The output dimensions of the lambda function itself
+        exclude_dims=set(("sample_idx",)),  # Dimensions to not vectorize over
+        vectorize=True,  # Vectorize other dimensions using a call to np.vectorize
+        dask="parallelized",  # Allow dask to chunk and parallelize the computation
+        output_dtypes=[
+            data["radar_data"].dtype
+        ],  # Needed for dask: explicitly provide the output dtype
+        dask_gufunc_kwargs={
+            "output_sizes": {"travel_time": output_len}
+        },  # Also needed for dask:
         # explicitly provide the output size of the lambda function. See
         # https://docs.dask.org/en/stable/generated/dask.array.gufunc.apply_gufunc.html
-    ).assign_coords(coords) # And finally add coordinate(s) corresponding to the new "travel_time" dimension
+    ).assign_coords(
+        coords
+    )  # And finally add coordinate(s) corresponding to the new "travel_time" dimension
 
     # Save the input parameters for future reference
-    compressed.attrs["pulse_compress"]={
-            "fs": fs, "zero_sample_idx": zero_sample_idx, "signal_speed": signal_speed}
-    
+    compressed.attrs["pulse_compress"] = {
+        "fs": fs,
+        "zero_sample_idx": zero_sample_idx,
+        "signal_speed": signal_speed,
+    }
+
     return compressed
 
 
@@ -348,17 +439,23 @@ def invert_phase_dithering(data, phase_codes_filename, override_errors=False):
 
     if not override_errors:
         if "phase_dithering_inversion" in data.attrs:
-            raise Exception("It looks like phase dithering inversion has already been run on this dataset.")
-        if not data.attrs['config']["CHIRP"].get("phase_dithering", False):
-            raise Exception("phase_dithering is not set in the config file. Are you sure you want to invert this file?")
-    
-    phases = np.fromfile(phase_codes_filename, dtype=np.float32, count=len(data.pulse_idx))
-    xr_phases = xr.DataArray(phases, dims=('pulse_idx',))
+            raise Exception(
+                "It looks like phase dithering inversion has already been run on this dataset."
+            )
+        if not data.attrs["config"]["CHIRP"].get("phase_dithering", False):
+            raise Exception(
+                "phase_dithering is not set in the config file. Are you sure you want to invert this file?"
+            )
+
+    phases = np.fromfile(
+        phase_codes_filename, dtype=np.float32, count=len(data.pulse_idx)
+    )
+    xr_phases = xr.DataArray(phases, dims=("pulse_idx",))
 
     demodulated = data.copy()
 
     demodulated["radar_data"] *= np.exp(-1j * xr_phases)
 
-    demodulated.attrs["phase_dithering_inversion"] = {'phases': phases}
-    
+    demodulated.attrs["phase_dithering_inversion"] = {"phases": phases}
+
     return demodulated
