@@ -7,6 +7,7 @@ import dask
 
 import numpy as np
 import scipy.signal
+from scipy.fft import fft, fftshift, fftfreq
 
 import processing as old_processing
 
@@ -132,7 +133,7 @@ def save_radar_data_to_zarr(
     )
     rx_sig = da.from_array(
         np.memmap(rx_samps_file, dtype=output_dtype, mode="r", order="C"),
-        chunks=rx_len_samples * 2 * 100,
+        chunks=str(rx_len_samples * 2 * 100),
     )
     rx_sig = (rx_sig[::2] + (1j * rx_sig[1::2])).astype(np.complex64) / scale_factor
     n_rxs = rx_sig.size // rx_len_samples
@@ -360,6 +361,10 @@ def stack(data: xr.Dataset, n_stack: int):
     All relevant coordinates (i.e. slow_time, pulse_idx) are taken as their
     minimum value in the stack.
     """
+    # Dont stack if n_stack is 1
+    if n_stack == 1:
+        return data
+
     return data.coarsen(
         {"pulse_idx": n_stack}, boundary="trim", coord_func="min"
     ).mean()
@@ -370,17 +375,20 @@ def pulse_compress(
     chirp,
     fs: float,
     zero_sample_idx: int = 0,
-    signal_speed: float = None,
+    signal_speed: float | None = None,
 ):
     """
     Apply pulse compression using samples from `chirp` to each pulse from `data`.
     Zero travel time is assumed to be at `zero_sample_idx` in the chirp.
+    `fs` is the sample rate.
     If a `signal_speed` is provided, this is used to create a secondary coordinate
     `reflection_distance` which is the distance from the radar to the reflection point
     assuming a constant signal speed.
     """
 
+    # TODO needs some work to make more sense
     output_len = len(data["sample_idx"]) - len(chirp) + 1
+    # output_len = 1800
     travel_time = np.linspace(0, output_len / fs, output_len)
     travel_time = travel_time - travel_time[zero_sample_idx]
 
@@ -402,7 +410,7 @@ def pulse_compress(
 
     compressed = xr.apply_ufunc(
         lambda x: scipy.signal.correlate(x, chirp, mode="valid")
-        / np.sum(np.abs(chirp) ** 2),
+        / np.sum(np.abs(chirp) ** 2),  # normalize with average energy of TX chirp
         data,
         input_core_dims=[
             ["sample_idx"]
@@ -433,6 +441,78 @@ def pulse_compress(
     }
 
     return compressed
+
+
+def radar_fft(
+    data: xr.Dataset,
+    chirp,
+    fs: float,
+    zero_sample_idx: int = 0,
+    signal_speed: float | None = None,
+):
+    """
+    Apply radar fft using samples from `chirp` to each pulse from `data`.
+    Zero travel time is assumed to be at `zero_sample_idx` in the chirp.
+    `fs` is the sample rate.
+    If a `signal_speed` is provided, this is used to create a secondary coordinate
+    `reflection_distance` which is the distance from the radar to the reflection point
+    assuming a constant signal speed.
+    """
+
+    # TODO needs some work to make more sense
+    # output_len = len(data["sample_idx"]) - len(chirp) + 1
+    output_len = 1800
+    travel_time = np.linspace(0, output_len / fs, output_len)
+    travel_time = travel_time - travel_time[zero_sample_idx]
+
+    coords = {"travel_time": travel_time}
+    if signal_speed is not None:
+        coords["reflection_distance"] = (
+            "travel_time",
+            travel_time * (signal_speed / 2),
+        )
+
+    # This code is kind of a nightmare, but it should be a fairly efficient way
+    # to do this.
+    # This function call applies the lambda function (first argument) to each
+    # pulse in the data.
+    # If you want to understand all the other parameters, I recommend starting
+    # with these pages:
+    # https://docs.xarray.dev/en/stable/examples/apply_ufunc_vectorize_1d.html
+    # https://docs.xarray.dev/en/stable/generated/xarray.apply_ufunc.html
+
+    radar_fft = xr.apply_ufunc(
+        lambda x: fftshift(fft(np.multiply(np.conj(x), chirp))),
+        data,
+        input_core_dims=[
+            ["sample_idx"]
+        ],  # The dimension operated over -- aka "don't vectorize over this"
+        output_core_dims=[
+            ["travel_time"]
+        ],  # The output dimensions of the lambda function itself
+        exclude_dims=set(("sample_idx",)),  # Dimensions to not vectorize over
+        vectorize=True,  # Vectorize other dimensions using a call to np.vectorize
+        dask="parallelized",  # Allow dask to chunk and parallelize the computation
+        output_dtypes=[
+            data["radar_data"].dtype
+        ],  # Needed for dask: explicitly provide the output dtype
+        dask_gufunc_kwargs={
+            "output_sizes": {"travel_time": output_len}
+        },  # Also needed for dask:
+        # explicitly provide the output size of the lambda function. See
+        # https://docs.dask.org/en/stable/generated/dask.array.gufunc.apply_gufunc.html
+    ).assign_coords(
+        coords
+    )  # And finally add coordinate(s) corresponding to the new "travel_time" dimension
+
+    # Save the input parameters for future reference
+    radar_fft.attrs["radar_fft"] = {
+        "fs": fs,
+        "zero_sample_idx": zero_sample_idx,
+        "signal_speed": signal_speed,
+    }
+
+    return radar_fft
 
 
 def invert_phase_dithering(data, phase_codes_filename, override_errors=False):

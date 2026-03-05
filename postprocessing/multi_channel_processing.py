@@ -277,7 +277,3 @@ def save_chan_data_to_zarr(
             print(data)
 
     return zarr_paths
-
-
-uninterleave_data("/home/amcdona4/Documents/uhd_snowdar/data/20260108_154718")
-save_chan_data_to_zarr("/home/amcdona4/Documents/uhd_snowdar/data/20260108_154718")
