@@ -387,8 +387,8 @@ def pulse_compress(
     """
 
     # TODO needs some work to make more sense
-    output_len = len(data["sample_idx"]) - len(chirp) + 1
-    # output_len = 1800
+    # output_len = len(data["sample_idx"]) - len(chirp) + 1
+    output_len = len(data["sample_idx"])
     travel_time = np.linspace(0, output_len / fs, output_len)
     travel_time = travel_time - travel_time[zero_sample_idx]
 
@@ -482,7 +482,7 @@ def radar_fft(
     # https://docs.xarray.dev/en/stable/generated/xarray.apply_ufunc.html
 
     radar_fft = xr.apply_ufunc(
-        lambda x: fftshift(fft(np.multiply(np.conj(x), chirp))),
+        lambda x: (fft(np.multiply(np.conj(x), chirp))),
         data,
         input_core_dims=[
             ["sample_idx"]

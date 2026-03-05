@@ -648,7 +648,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
       if (outfile.is_open())
       {
         outfile.write((const char *)&sample_sum.front(),
-                      num_channels * num_rx_samps * sizeof(complex<float>)); // Multiply by num_channels to account for more than one channel of data
+                      num_rx_samps * sizeof(complex<float>)); // Multiply by num_channels to account for more than one channel of data
       }
       else
       {
