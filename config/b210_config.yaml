@@ -40,14 +40,14 @@ DEVICE:
     # Advanced config: https://files.ettus.com/manual/page_configuration.html
     # Transport parameters: https://files.ettus.com/manual/page_transport.html
     device_args: "num_recv_frames=900,num_send_frames=900,recv_frame_size=12000,send_frame_size=12000"
-    subdev: "A:A A:B"                    # Active SDR submodules (for multi channel do A:A A:B)
+    subdev: "A:A"                    # Active SDR submodules (for multi channel do A:A A:B)
                                          #   See https://files.ettus.com/manual/page_configuration.html
     clk_ref: "internal"                  # Clock reference source
                                          #   See https://files.ettus.com/manual/page_sync.html
     clk_rate: *s_rate                       # [Hz] SDR main clock frequency
-    tx_channels: "0,1"                     # List of TX channels to use (comma
+    tx_channels: "0"                     # List of TX channels to use (comma
                                          #   separated) (more than 1 channel only works if subdev is A:A A:B)
-    rx_channels: "0,1"                     # List of RX channels to use (comma
+    rx_channels: "0"                     # List of RX channels to use (comma
                                          #   separated) (more than 1 channel only works if subdev is A:A A:B)
                                          #   (must be the same length as tx_channels)
     cpu_format: "fc32"                   # CPU-side sample format
@@ -74,7 +74,7 @@ RF0:
     freq: 5.8e9                          # [Hz] Center Frequency (mixer frequency)
     lo_offset: 0e6                      # [Hz] LO offset
     rx_gain: 65                          # [dB] RX Gain
-    tx_gain: 80                          # [dB] TX Gain
+    tx_gain: 75                          # [dB] TX Gain
     bw: *s_rate                             # [Hz] Configurable filter bandwidth
     tx_ant: "TX/RX"                      # Port to be used for TX
     rx_ant: "RX2"                        # port to be used for RX
@@ -111,7 +111,7 @@ CHIRP:
                                          #   off (if using GPIO)
     pulse_rep_int: 10000e-6                # [s] Pulse period # defined as .01 seconds or 100Hz
     tx_lead: 0e-6                        # [s] Time between start of TX and RX
-    num_pulses: &num_pulses 200        # No. of chirps to TX/RX - set to -1 to
+    num_pulses: &num_pulses 1000        # No. of chirps to TX/RX - set to -1 to
                                          #   continuously transmit pulses until
                                          #   stopped
     num_presums: 1                       # Number of received pulses to average
