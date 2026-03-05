@@ -22,8 +22,6 @@ import array
 import matplotlib.pyplot as plt
 import numpy as np
 
-# from numpy.fft import fft
-# from numpy.fft import fftshift
 from scipy.fft import fft, fftshift, fftfreq
 
 import scipy.signal as sp
@@ -37,6 +35,7 @@ from generate_chirp import generate_chirp
 
 n_stack = 1  # Do additional stacking in this notebook - set > 1 to enable
 zero_sample_idx = 0  # The index of the 0 distance sample -- will change with platforms and config changes -- if unsure, just set to 0
+n_recv_chans = 2 # Number of receive channels
 
 ##### FILE NAMES #####
 PREFIX = "./data/20251118_162515"
@@ -72,6 +71,7 @@ def handle_data(
 
     _, tx_sig = generate_chirp(yaml_config)  # generate chirp based on YAML config
 
+    # TODO I bet this could be a lot more efficient
     for row in range(numChirps):
         for i in range(numSamples):
             mixed_sig[row][i] = (tx_sig[i].real + tx_sig[i].imag * 1j) * (
