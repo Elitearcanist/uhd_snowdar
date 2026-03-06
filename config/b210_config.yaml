@@ -12,7 +12,7 @@ GENERATE:
     chirp_bandwidth: *s_rate                # [Hz] Bandwidth of the chirp
     lo_offset_sw: 0e6                    # [Hz] Center frequency of the chirp
                                          #   (relative to RF center frequency)
-    window: 'rectangular'                # Window function applied to the chirp
+    window: 'hamming'                # Window function applied to the chirp
                                          #   Supported options: "rectangular",
                                          #   "hamming", "blackman", "kaiser10",
                                          #   "kaiser14", "kaiser18"
