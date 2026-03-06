@@ -461,7 +461,7 @@ def radar_fft(
 
     # TODO needs some work to make more sense
     # output_len = len(data["sample_idx"]) - len(chirp) + 1
-    output_len = 1800
+    output_len = len(data["sample_idx"])
     travel_time = np.linspace(0, output_len / fs, output_len)
     travel_time = travel_time - travel_time[zero_sample_idx]
 
