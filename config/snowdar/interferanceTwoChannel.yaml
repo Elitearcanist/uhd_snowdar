@@ -4,7 +4,7 @@
 
 ### CHIRP AND PULSE PARAMETERS
 GENERATE:
-    sample_rate: &s_rate 56e6            # [Hz] Sample rate of the generated
+    sample_rate: &s_rate 30e6            # [Hz] Sample rate of the generated
                                          #   chirp (used as TX and RX rate too)
     chirp_type: 'linear'                 # Chirp frequency progression type.
                                          #   Supported options: "linear",
