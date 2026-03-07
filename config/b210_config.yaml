@@ -20,8 +20,8 @@ GENERATE:
     # need the chirp to travel to and from mountainside
     # assume mountain side is < 5 miles, signal travels about 10 miles
     # 16km at speed of light is about 53 microseconds, rounded up to 60
-    chirp_length: &chirp_len 60e-6       # [s] Chirp length without zero padding
-    pulse_length: &pulse_len 60e-6       # [s] Total pulse length (chirp +
+    chirp_length: &chirp_len 10e-6       # [s] Chirp length without zero padding
+    pulse_length: &pulse_len 10e-6       # [s] Total pulse length (chirp +
                                          #   symmetric zero padding)    
     out_file: &ch_sent "data/chirp.bin"  # The name of the output binary file
                                          #   containing the pulse samples
@@ -74,7 +74,7 @@ RF0:
     freq: 5.8e9                          # [Hz] Center Frequency (mixer frequency)
     lo_offset: 0e6                      # [Hz] LO offset
     rx_gain: 65                          # [dB] RX Gain
-    tx_gain: 75                          # [dB] TX Gain
+    tx_gain: 50                          # [dB] TX Gain
     bw: *s_rate                             # [Hz] Configurable filter bandwidth
     tx_ant: "TX/RX"                      # Port to be used for TX
     rx_ant: "RX2"                        # port to be used for RX
@@ -111,14 +111,14 @@ CHIRP:
                                          #   off (if using GPIO)
     pulse_rep_int: 10000e-6                # [s] Pulse period # defined as .01 seconds or 100Hz
     tx_lead: 0e-6                        # [s] Time between start of TX and RX
-    num_pulses: &num_pulses 1000        # No. of chirps to TX/RX - set to -1 to
+    num_pulses: &num_pulses 100        # No. of chirps to TX/RX - set to -1 to
                                          #   continuously transmit pulses until
                                          #   stopped
     num_presums: 1                       # Number of received pulses to average
                                          #   over before writing to file
     # I noticed that the saved data had lots of gaps (0s) if phase dithering was disabled
     # however, it did not seem to affect the spectrogram
-    phase_dithering: false                # Enable phase dithering
+    phase_dithering: true                # Enable phase dithering
 ### DURING-RECORDING FILE LOCATIONS
 FILES:
     chirp_loc: *ch_sent                  # Chirp file to transmit
